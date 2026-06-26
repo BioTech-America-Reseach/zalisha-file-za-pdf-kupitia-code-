@@ -3,28 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website to PDF Converter - Dr. William</title>
+    <title>Website to PDF Converter - Toleo la Nguvu</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: 'DM Sans', sans-serif; background: #f0ebe3; }
-        .serif { font-family: 'Source Serif Pro', serif; }
         .gradient-bar { background: linear-gradient(90deg, #1B5E20, #FFD600, #0D47A1); height: 6px; }
-        .drop-zone {
-            border: 3px dashed #1B5E20;
-            border-radius: 16px;
-            padding: 40px;
-            text-align: center;
-            transition: all 0.3s;
-            background: #fafffe;
-            cursor: pointer;
-        }
-        .drop-zone:hover, .drop-zone.dragover {
-            background: #e8f5e9;
-            border-color: #FFD600;
-        }
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #1B5E20;
@@ -36,33 +21,6 @@
             margin: 20px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .preview-container {
-            max-height: 600px;
-            overflow-y: auto;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            background: #fafafa;
-        }
-        .preview-container iframe {
-            width: 100%;
-            min-height: 500px;
-            border: none;
-        }
-        .status-bar {
-            transition: all 0.5s;
-        }
-        .url-input:focus {
-            ring: 2px solid #1B5E20;
-            border-color: #1B5E20;
-        }
-        .btn-progress {
-            background: linear-gradient(90deg, #1B5E20, #43A047);
-            background-size: 200% 100%;
-            animation: progress 2s ease-in-out infinite;
-        }
-        @keyframes progress { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        
-        /* Toast notifications */
         .toast-container {
             position: fixed;
             bottom: 20px;
@@ -80,18 +38,52 @@
             font-weight: 600;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
             animation: slideUp 0.4s ease;
-            transform-origin: bottom right;
         }
         .toast.success { background: #1B5E20; }
         .toast.error { background: #C62828; }
         .toast.warning { background: #E65100; }
         .toast.info { background: #0D47A1; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(40px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
         
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-        .badge-green { background: #E8F5E9; color: #1B5E20; }
-        .badge-red { background: #FFEBEE; color: #C62828; }
-        .badge-blue { background: #E3F2FD; color: #0D47A1; }
+        .url-input:focus { ring: 2px solid #1B5E20; border-color: #1B5E20; }
+        .preview-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fafafa;
+        }
+        .preview-container iframe {
+            width: 100%;
+            min-height: 500px;
+            border: none;
+        }
+        .preview-container img {
+            width: 100%;
+            height: auto;
+        }
+        .status-bar { transition: all 0.5s; }
+        .btn-progress {
+            background: linear-gradient(90deg, #1B5E20, #43A047);
+            background-size: 200% 100%;
+            animation: progress 2s ease-in-out infinite;
+        }
+        @keyframes progress { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        
+        .method-tab {
+            padding: 8px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .method-tab.active {
+            background: #1B5E20;
+            color: #fff;
+        }
+        .method-tab:hover:not(.active) {
+            background: #e8f5e9;
+        }
     </style>
 </head>
 <body>
@@ -104,44 +96,54 @@
         <!-- Header -->
         <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-green-800 serif">🌐 Website to PDF Converter</h1>
-                <p class="text-gray-600">Ingiza URL, mfumo utachukua screenshot na kuunda PDF</p>
+                <h1 class="text-3xl font-bold text-green-800">🌐 Website to PDF Converter</h1>
+                <p class="text-gray-600">Inatumia njia mbili - iframe na screenshot</p>
             </div>
             <div class="flex gap-3 flex-wrap">
                 <button onclick="convertToPDF()" id="convertBtn" class="bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition">
-                    <i data-lucide="file-pdf" class="w-5 h-5"></i> Badilisha kuwa PDF
+                    <span>📄</span> Badilisha kuwa PDF
                 </button>
-                <button onclick="openInNewTab()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition">
-                    <i data-lucide="external-link" class="w-5 h-5"></i> Fungua Website
+                <button onclick="takeScreenshot()" id="screenshotBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition">
+                    <span>📸</span> Chukua Screenshot
                 </button>
             </div>
         </div>
 
-        <!-- URL Input Section -->
+        <!-- URL Input -->
         <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">🔗 URL ya Website</label>
                     <input type="url" id="urlInput" class="url-input w-full border-2 border-gray-300 rounded-lg p-3 text-lg outline-none transition" 
-                           placeholder="https://example.com" value="https://www.tra.go.tz/">
+                           placeholder="https://example.com" value="https://fleaa.my.canva.site/">
                 </div>
                 <div class="flex items-end gap-3">
-                    <button onclick="loadWebsite()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition whitespace-nowrap">
-                        <i data-lucide="globe" class="w-5 h-5 inline"></i> Chukua
+                    <button onclick="loadWebsite()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition">
+                        <span>🌍</span> Chukua
                     </button>
                     <button onclick="clearAll()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-3 rounded-lg font-bold transition">
-                        <i data-lucide="x" class="w-5 h-5"></i>
+                        <span>✖</span>
                     </button>
                 </div>
             </div>
-            <div class="mt-2 flex flex-wrap gap-3">
+            <div class="mt-2 flex flex-wrap gap-2">
                 <span class="text-xs text-gray-500">Mifano:</span>
-                <button onclick="setURL('https://www.tra.go.tz/')" class="text-xs text-blue-600 hover:underline">TRA</button>
-                <button onclick="setURL('https://www.mof.go.tz/')" class="text-xs text-blue-600 hover:underline">Wizara ya Fedha</button>
-                <button onclick="setURL('https://www.nbs.go.tz/')" class="text-xs text-blue-600 hover:underline">NBS</button>
-                <button onclick="setURL('https://www.vodacom.co.tz/')" class="text-xs text-blue-600 hover:underline">Vodacom</button>
-                <button onclick="setURL('https://www.mzalendokilimo.com/')" class="text-xs text-blue-600 hover:underline">MzalendoKilimo</button>
+                <button onclick="setURL('https://fleaa.my.canva.site/')" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full">Canva</button>
+                <button onclick="setURL('https://www.tra.go.tz/')" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full">TRA</button>
+                <button onclick="setURL('https://www.google.com/')" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full">Google</button>
+                <button onclick="setURL('https://www.wikipedia.org/')" class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full">Wikipedia</button>
             </div>
+        </div>
+
+        <!-- Method Selection -->
+        <div class="bg-white p-4 rounded-xl shadow-lg mb-6">
+            <p class="text-sm font-semibold text-gray-700 mb-2">⚙️ Njia ya Kubadilisha:</p>
+            <div class="flex gap-2 flex-wrap">
+                <span class="method-tab active" data-method="iframe" onclick="selectMethod('iframe')">🖥️ Iframe (Haraka)</span>
+                <span class="method-tab" data-method="screenshot" onclick="selectMethod('screenshot')">📸 Screenshot (Inafanya kazi kwa zote)</span>
+                <span class="method-tab" data-method="html" onclick="selectMethod('html')">📝 HTML (Maandishi tu)</span>
+            </div>
+            <p id="methodDescription" class="text-xs text-gray-500 mt-2">Inapakia website kwenye iframe. Inafanya kazi kwa website nyingi lakini zingine zinaweza kuzuiwa.</p>
         </div>
 
         <!-- Status Bar -->
@@ -161,10 +163,10 @@
         <!-- Loader -->
         <div id="loader" class="loader"></div>
 
-        <!-- Preview Section -->
+        <!-- Preview -->
         <div class="mt-6">
             <div class="flex justify-between items-center mb-3">
-                <h2 class="text-lg font-bold text-green-800">👁️ Preview ya Website</h2>
+                <h2 class="text-lg font-bold text-green-800">👁️ Preview</h2>
                 <span id="pageInfo" class="text-sm text-gray-500"></span>
             </div>
             <div class="preview-container" id="previewContainer">
@@ -175,56 +177,51 @@
         <!-- Options -->
         <div class="mt-6 grid md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-xl shadow-lg">
-                <h3 class="font-bold text-green-800 text-sm mb-2">⚙️ Chaguo za PDF</h3>
+                <h3 class="font-bold text-green-800 text-sm mb-2">⚙️ Chaguo</h3>
                 <div class="space-y-2 text-sm">
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="fullPage" checked>
-                        <span>Chukua ukurasa mzima</span>
+                        <span>Ukurasa mzima</span>
                     </label>
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="landscape">
-                        <span>Mwelekeo wa upana (Landscape)</span>
+                        <span>Landscape</span>
                     </label>
                     <label class="flex items-center gap-2">
                         <input type="checkbox" id="showUrls">
-                        <span>Onyesha URL chini</span>
+                        <span>Onyesha URL</span>
                     </label>
                 </div>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-lg">
-                <h3 class="font-bold text-green-800 text-sm mb-2">📏 Ukubwa wa PDF</h3>
-                <div class="space-y-2 text-sm">
-                    <select id="pageSize" class="w-full border rounded-lg p-2">
-                        <option value="a4">A4</option>
-                        <option value="a3">A3</option>
-                        <option value="a5">A5</option>
-                        <option value="letter">Letter</option>
-                        <option value="legal">Legal</option>
-                    </select>
-                </div>
+                <h3 class="font-bold text-green-800 text-sm mb-2">📏 Ukubwa</h3>
+                <select id="pageSize" class="w-full border rounded-lg p-2">
+                    <option value="a4">A4</option>
+                    <option value="a3">A3</option>
+                    <option value="letter">Letter</option>
+                    <option value="legal">Legal</option>
+                </select>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-lg">
-                <h3 class="font-bold text-green-800 text-sm mb-2">📁 Jina la Faili</h3>
-                <input type="text" id="fileName" class="w-full border rounded-lg p-2 text-sm" value="website-screenshot">
-                <span class="text-xs text-gray-500">.pdf itaongezwa moja kwa moja</span>
+                <h3 class="font-bold text-green-800 text-sm mb-2">📁 Jina</h3>
+                <input type="text" id="fileName" class="w-full border rounded-lg p-2 text-sm" value="website-page">
+                <span class="text-xs text-gray-500">.pdf itaongezwa</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Initialize Lucide icons
-    lucide.createIcons();
-
     // ============================================================
     // VARIABLES
     // ============================================================
+    let currentMethod = 'iframe';
     let currentUrl = '';
     let isConverting = false;
-    let capturedHtml = '';
+    let capturedImages = [];
 
     // ============================================================
-    // TOAST NOTIFICATIONS
+    // TOAST
     // ============================================================
     function showToast(message, type = 'info') {
         const container = document.getElementById('toastContainer');
@@ -240,7 +237,7 @@
     }
 
     // ============================================================
-    // STATUS BAR
+    // STATUS
     // ============================================================
     function updateStatus(icon, text, detail, progress = null) {
         document.getElementById('statusIcon').textContent = icon;
@@ -256,6 +253,25 @@
         } else {
             progressBar.classList.add('hidden');
         }
+    }
+
+    // ============================================================
+    // METHODS
+    // ============================================================
+    function selectMethod(method) {
+        currentMethod = method;
+        document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector(`.method-tab[data-method="${method}"]`).classList.add('active');
+        
+        const descriptions = {
+            'iframe': 'Inapakia website kwenye iframe. Inafanya kazi kwa website nyingi lakini zingine zinaweza kuzuiwa.',
+            'screenshot': 'Inachukua screenshot ya ukurasa mzima. Inafanya kazi kwa website zote! Inaweza kuchukua muda.',
+            'html': 'Inachukua HTML ya ukurasa. Inafanya kazi kwa website zote lakini inaweza isionyeshe picha.'
+        };
+        document.getElementById('methodDescription').textContent = descriptions[method] || '';
+        
+        // Reload if we have a URL
+        if (currentUrl) loadWebsite();
     }
 
     // ============================================================
@@ -279,7 +295,7 @@
             new URL(url);
             return url;
         } catch (e) {
-            showToast('❌ URL si sahihi. Tafadhali ingiza URL halali.', 'error');
+            showToast('❌ URL si sahihi', 'error');
             return null;
         }
     }
@@ -292,55 +308,172 @@
         if (!url) return;
         
         currentUrl = url;
-        updateStatus('🔄', 'Inapakia...', 'Inachukua website', 10);
+        updateStatus('🔄', 'Inapakia...', 'Tafadhali subiri', 10);
         showToast('🔄 Inapakia website...', 'info');
         
         const frame = document.getElementById('previewFrame');
-        frame.src = url;
+        const container = document.getElementById('previewContainer');
         
-        // Update filename based on URL
-        const domain = new URL(url).hostname.replace('www.', '');
-        document.getElementById('fileName').value = domain;
+        // Update filename
+        try {
+            const domain = new URL(url).hostname.replace('www.', '');
+            document.getElementById('fileName').value = domain;
+        } catch(e) {}
         
-        // Wait for iframe to load
-        frame.onload = function() {
-            updateStatus('✅', 'Imepakiwa!', 'Website imepakiwa. Tayari kwa PDF', 100);
-            showToast('✅ Website imepakiwa!', 'success');
-            document.getElementById('pageInfo').textContent = `🌐 ${url}`;
-            
-            // Try to capture content for PDF
-            try {
-                // For same-origin or CORS-enabled sites
-                const doc = frame.contentDocument || frame.contentWindow.document;
-                if (doc) {
-                    capturedHtml = doc.documentElement.outerHTML;
-                }
-            } catch (e) {
-                // Cross-origin - we'll use the iframe directly for PDF
-                capturedHtml = '';
-                showToast('ℹ️ Website ni cross-origin. PDF itatumia iframe.', 'info');
-            }
-        };
+        if (currentMethod === 'iframe') {
+            // Method 1: Iframe
+            frame.style.display = 'block';
+            frame.src = url;
+            frame.onload = function() {
+                updateStatus('✅', 'Imepakiwa!', 'Website imepakiwa kwenye iframe', 100);
+                showToast('✅ Website imepakiwa!', 'success');
+                document.getElementById('pageInfo').textContent = `🌐 ${url}`;
+            };
+            frame.onerror = function() {
+                updateStatus('⚠️', 'Hitilafu!', 'Website inaweza kuwa inazuia iframe', 0);
+                showToast('⚠️ Website inazuia iframe. Jaribu njia ya Screenshot.', 'warning');
+            };
+            // Hide any previous screenshot
+            const img = container.querySelector('img');
+            if (img) img.remove();
+        } else if (currentMethod === 'screenshot') {
+            // Method 2: Screenshot - Load in iframe then capture
+            frame.style.display = 'block';
+            frame.src = url;
+            frame.onload = function() {
+                updateStatus('📸', 'Inachukua screenshot...', 'Inasubiri ukurasa kupakua', 30);
+                showToast('📸 Inachukua screenshot...', 'info');
+                
+                // Wait a bit for page to fully render
+                setTimeout(() => {
+                    captureScreenshot(frame);
+                }, 3000);
+            };
+            frame.onerror = function() {
+                updateStatus('⚠️', 'Hitilafu!', 'Haiwezi kupakia website', 0);
+                showToast('⚠️ Haiwezi kupakia website', 'warning');
+            };
+        } else {
+            // Method 3: HTML - Fetch directly
+            frame.style.display = 'none';
+            fetchHTML(url);
+        }
         
-        frame.onerror = function() {
-            updateStatus('❌', 'Hitilafu!', 'Haiwezi kupakia website', 0);
-            showToast('❌ Hitilafu kupakia website. Angalia URL.', 'error');
-        };
-        
-        // Timeout after 30 seconds
+        // Timeout
         setTimeout(() => {
-            if (frame.src === 'about:blank' || frame.src === url) {
-                // Check if loaded
+            if (document.getElementById('statusText').textContent === 'Inapakia...') {
+                updateStatus('⚠️', 'Muda umekwisha!', 'Jaribu kubadilisha njia', 0);
+                showToast('⚠️ Muda wa kupakia umekwisha. Jaribu njia nyingine.', 'warning');
             }
         }, 30000);
     }
 
     // ============================================================
-    // CONVERT TO PDF - USING html2pdf WITH IFRAME
+    // CAPTURE SCREENSHOT
+    // ============================================================
+    function captureScreenshot(frame) {
+        try {
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            if (!doc || !doc.body) {
+                updateStatus('❌', 'Hitilafu!', 'Haiwezi kufikia maudhui ya ukurasa', 0);
+                showToast('❌ Haiwezi kufikia ukurasa. Jaribu njia nyingine.', 'error');
+                return;
+            }
+            
+            // Use html2canvas to capture the iframe content
+            html2canvas(doc.body, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                width: doc.body.scrollWidth,
+                height: doc.body.scrollHeight,
+                windowHeight: doc.body.scrollHeight,
+                windowWidth: doc.body.scrollWidth,
+                scrollY: 0,
+                scrollX: 0
+            }).then(canvas => {
+                // Display the screenshot in preview
+                const container = document.getElementById('previewContainer');
+                const img = document.createElement('img');
+                img.src = canvas.toDataURL('image/png');
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.borderRadius = '8px';
+                
+                // Remove iframe, show image
+                const frame = container.querySelector('iframe');
+                if (frame) frame.style.display = 'none';
+                
+                // Remove old images
+                container.querySelectorAll('img').forEach(el => el.remove());
+                container.appendChild(img);
+                
+                // Store for PDF generation
+                capturedImages = [canvas];
+                
+                updateStatus('✅', 'Screenshot imechukuliwa!', 'Tayari kwa PDF', 100);
+                showToast('✅ Screenshot imechukuliwa!', 'success');
+                document.getElementById('pageInfo').textContent = `📸 Screenshot ya ${currentUrl}`;
+            }).catch(err => {
+                console.error('Screenshot error:', err);
+                updateStatus('❌', 'Hitilafu!', err.message || 'Haiwezi kuchukua screenshot', 0);
+                showToast('❌ Hitilafu kuchukua screenshot: ' + err.message, 'error');
+            });
+        } catch (e) {
+            console.error('Capture error:', e);
+            updateStatus('❌', 'Hitilafu!', e.message || 'Haiwezi kufikia ukurasa', 0);
+            showToast('❌ Hitilafu: ' + e.message, 'error');
+        }
+    }
+
+    // ============================================================
+    // FETCH HTML (Method 3)
+    // ============================================================
+    function fetchHTML(url) {
+        updateStatus('📝', 'Inachukua HTML...', 'Inasubiri majibu', 20);
+        
+        // Use a proxy to bypass CORS
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        
+        fetch(proxyUrl)
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.text();
+            })
+            .then(html => {
+                // Display HTML in preview
+                const container = document.getElementById('previewContainer');
+                container.innerHTML = `
+                    <div style="padding:20px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-wrap:break-word;max-height:500px;overflow-y:auto;">
+                        ${html.substring(0, 5000)}...
+                        <hr>
+                        <p style="color:green;">✅ HTML imechukuliwa! (${html.length} characters)</p>
+                    </div>
+                `;
+                
+                // Create PDF from HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                capturedHtml = html;
+                
+                updateStatus('✅', 'HTML imechukuliwa!', 'Tayari kwa PDF', 100);
+                showToast('✅ HTML imechukuliwa!', 'success');
+                document.getElementById('pageInfo').textContent = `📝 HTML ya ${url}`;
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                updateStatus('❌', 'Hitilafu!', err.message || 'Haiwezi kuchukua HTML', 0);
+                showToast('❌ Hitilafu: ' + err.message, 'error');
+            });
+    }
+
+    // ============================================================
+    // CONVERT TO PDF
     // ============================================================
     function convertToPDF() {
         if (isConverting) {
-            showToast('⏳ Tafadhali subiri, PDF inaundwa...', 'warning');
+            showToast('⏳ Tafadhali subiri...', 'warning');
             return;
         }
         
@@ -349,192 +482,207 @@
         
         isConverting = true;
         document.getElementById('convertBtn').disabled = true;
-        document.getElementById('convertBtn').innerHTML = '<div class="loader-small"></div> Inaunda PDF...';
+        document.getElementById('convertBtn').innerHTML = '⏳ Inaunda...';
         document.getElementById('convertBtn').classList.add('btn-progress');
         
         updateStatus('📄', 'Inaunda PDF...', 'Tafadhali subiri', 20);
         showToast('📄 Inaunda PDF...', 'info');
         
-        // Get options
-        const fullPage = document.getElementById('fullPage').checked;
+        const fileName = document.getElementById('fileName').value.trim() || 'website';
         const landscape = document.getElementById('landscape').checked;
+        const fullPage = document.getElementById('fullPage').checked;
         const showUrls = document.getElementById('showUrls').checked;
         const pageSize = document.getElementById('pageSize').value;
-        const fileName = document.getElementById('fileName').value.trim() || 'website-screenshot';
         
-        // Create a container to render the website
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: landscape ? 'landscape' : 'portrait',
+            unit: 'mm',
+            format: pageSize || 'a4'
+        });
+        
+        if (currentMethod === 'screenshot' && capturedImages.length > 0) {
+            // Use captured screenshot
+            updateStatus('📄', 'Inaunda PDF...', 'Inatumia screenshot', 40);
+            addScreenshotToPDF(pdf, capturedImages[0], fileName, landscape, showUrls);
+        } else {
+            // Use html2pdf for iframe or HTML content
+            updateStatus('📄', 'Inaunda PDF...', 'Inatumia html2pdf', 40);
+            generatePDFWithHtml2pdf(url, fileName, pageSize, landscape, fullPage, showUrls);
+        }
+    }
+
+    // ============================================================
+    // ADD SCREENSHOT TO PDF
+    // ============================================================
+    function addScreenshotToPDF(pdf, canvas, fileName, landscape, showUrls) {
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // Calculate image dimensions to fit
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const newWidth = imgWidth * ratio;
+        const newHeight = imgHeight * ratio;
+        const x = (pdfWidth - newWidth) / 2;
+        const y = (pdfHeight - newHeight) / 2;
+        
+        pdf.addImage(imgData, 'JPEG', x, y, newWidth, newHeight);
+        
+        // Add URL footer
+        if (showUrls) {
+            pdf.setFontSize(8);
+            pdf.setTextColor(100);
+            pdf.text(currentUrl, pdfWidth / 2, pdfHeight - 10, { align: 'center' });
+        }
+        
+        pdf.save(`${fileName}.pdf`);
+        
+        isConverting = false;
+        document.getElementById('convertBtn').disabled = false;
+        document.getElementById('convertBtn').innerHTML = '📄 Badilisha kuwa PDF';
+        document.getElementById('convertBtn').classList.remove('btn-progress');
+        
+        updateStatus('✅', 'Imekamilika!', 'PDF imepakuliwa', 100);
+        showToast('✅ PDF imepakuliwa!', 'success');
+        setTimeout(() => updateStatus('✅', 'Tayari kwa kazi', 'Ingiza URL kisha bonyeza "Chukua"'), 3000);
+    }
+
+    // ============================================================
+    // GENERATE PDF WITH HTML2PDF
+    // ============================================================
+    function generatePDFWithHtml2pdf(url, fileName, pageSize, landscape, fullPage, showUrls) {
+        // Create a container
         const container = document.createElement('div');
         container.style.width = '100%';
         container.style.maxWidth = '1200px';
         container.style.margin = '0 auto';
         container.style.padding = '20px';
         container.style.background = '#ffffff';
-        container.style.fontSize = '14px';
-        container.style.lineHeight = '1.6';
-        container.style.color = '#333';
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.top = '0';
         
-        // Add URL footer if requested
-        let footerHtml = '';
+        // Add iframe with the website
+        const iframe = document.createElement('iframe');
+        iframe.src = url;
+        iframe.style.width = '100%';
+        iframe.style.height = '800px';
+        iframe.style.border = 'none';
+        container.appendChild(iframe);
+        
+        // Add footer
         if (showUrls) {
-            footerHtml = `
-                <div style="text-align:center;padding:10px;margin-top:20px;border-top:2px solid #1B5E20;font-size:12px;color:#666;">
-                    <span>🌐 ${url}</span>
-                    <span style="margin:0 15px;">|</span>
-                    <span>📅 ${new Date().toLocaleDateString('sw-TZ', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    <span style="margin:0 15px;">|</span>
-                    <span>🕐 ${new Date().toLocaleTimeString('sw-TZ')}</span>
-                </div>
-            `;
+            const footer = document.createElement('div');
+            footer.style.textAlign = 'center';
+            footer.style.padding = '10px';
+            footer.style.marginTop = '20px';
+            footer.style.borderTop = '2px solid #1B5E20';
+            footer.style.fontSize = '12px';
+            footer.style.color = '#666';
+            footer.innerHTML = `🌐 ${url} | 📅 ${new Date().toLocaleDateString('sw-TZ')}`;
+            container.appendChild(footer);
         }
         
-        // If we have captured HTML from same-origin, use it
-        if (capturedHtml) {
-            container.innerHTML = capturedHtml + footerHtml;
-            updateStatus('📄', 'Inaunda PDF...', 'Inachakata HTML', 40);
-            generatePDFFromElement(container, fileName, pageSize, landscape, fullPage);
-        } else {
-            // For cross-origin, use iframe
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.width = '100%';
-            iframe.style.height = '800px';
-            iframe.style.border = 'none';
-            container.appendChild(iframe);
-            
-            // Add footer
-            const footerDiv = document.createElement('div');
-            footerDiv.innerHTML = footerHtml;
-            container.appendChild(footerDiv);
-            
-            // Wait for iframe to load
-            iframe.onload = function() {
-                updateStatus('📄', 'Inaunda PDF...', 'Iframe imepakiwa', 60);
-                generatePDFFromElement(container, fileName, pageSize, landscape, fullPage);
-            };
-            
-            // Timeout fallback
+        document.body.appendChild(container);
+        
+        updateStatus('📄', 'Inaunda PDF...', 'Inasubiri iframe kupakua', 50);
+        
+        // Wait for iframe to load
+        iframe.onload = function() {
+            updateStatus('📄', 'Inaunda PDF...', 'Iframe imepakiwa', 70);
             setTimeout(() => {
-                if (!isConverting) return;
-                updateStatus('📄', 'Inaunda PDF...', 'Kutumia timeout', 70);
-                generatePDFFromElement(container, fileName, pageSize, landscape, fullPage);
-            }, 10000);
-            
-            // Append to body temporarily
-            document.body.appendChild(container);
-            container.style.display = 'block';
-            container.style.position = 'absolute';
-            container.style.left = '-9999px';
-            container.style.top = '0';
-        }
-    }
-
-    // ============================================================
-    // GENERATE PDF FROM ELEMENT
-    // ============================================================
-    function generatePDFFromElement(element, fileName, pageSize, landscape, fullPage) {
-        updateStatus('📄', 'Inaunda PDF...', 'Inaandaa html2pdf', 80);
-        
-        const opt = {
-            margin: [10, 10, 10, 10],
-            filename: `${fileName}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2, 
-                useCORS: true,
-                logging: false,
-                letterRendering: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                scrollY: 0,
-                windowHeight: fullPage ? undefined : window.innerHeight
-            },
-            jsPDF: { 
-                unit: 'mm', 
-                format: pageSize || 'a4', 
-                orientation: landscape ? 'landscape' : 'portrait' 
-            },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                const opt = {
+                    margin: [10, 10, 10, 10],
+                    filename: `${fileName}.pdf`,
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { 
+                        scale: 2, 
+                        useCORS: true,
+                        logging: false,
+                        letterRendering: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff'
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: pageSize || 'a4', 
+                        orientation: landscape ? 'landscape' : 'portrait' 
+                    },
+                    pagebreak: { mode: ['avoid-all', 'css'] }
+                };
+                
+                html2pdf().set(opt).from(container).save().then(() => {
+                    document.body.removeChild(container);
+                    isConverting = false;
+                    document.getElementById('convertBtn').disabled = false;
+                    document.getElementById('convertBtn').innerHTML = '📄 Badilisha kuwa PDF';
+                    document.getElementById('convertBtn').classList.remove('btn-progress');
+                    updateStatus('✅', 'Imekamilika!', 'PDF imepakuliwa', 100);
+                    showToast('✅ PDF imepakuliwa!', 'success');
+                    setTimeout(() => updateStatus('✅', 'Tayari kwa kazi', ''), 3000);
+                }).catch(err => {
+                    document.body.removeChild(container);
+                    isConverting = false;
+                    document.getElementById('convertBtn').disabled = false;
+                    document.getElementById('convertBtn').innerHTML = '📄 Badilisha kuwa PDF';
+                    document.getElementById('convertBtn').classList.remove('btn-progress');
+                    updateStatus('❌', 'Hitilafu!', err.message, 0);
+                    showToast('❌ Hitilafu: ' + err.message, 'error');
+                });
+            }, 3000);
         };
         
-        // If full page, we need to scroll to capture everything
-        if (fullPage) {
-            opt.html2canvas.scrollY = 0;
-            opt.html2canvas.windowHeight = element.scrollHeight || 2000;
-        }
-        
-        // If element is already in DOM, use it directly
-        let targetElement = element;
-        let isTemp = false;
-        
-        if (!element.parentNode) {
-            // Element not in DOM, add it temporarily
-            document.body.appendChild(element);
-            isTemp = true;
-        }
-        
-        // Make sure element is visible
-        element.style.display = 'block';
-        element.style.position = 'relative';
-        element.style.left = 'auto';
-        element.style.top = 'auto';
-        element.style.background = '#ffffff';
-        element.style.padding = '20px';
-        
-        html2pdf().set(opt).from(element).save().then(function() {
+        iframe.onerror = function() {
+            document.body.removeChild(container);
             isConverting = false;
             document.getElementById('convertBtn').disabled = false;
-            document.getElementById('convertBtn').innerHTML = '<i data-lucide="file-pdf" class="w-5 h-5"></i> Badilisha kuwa PDF';
+            document.getElementById('convertBtn').innerHTML = '📄 Badilisha kuwa PDF';
             document.getElementById('convertBtn').classList.remove('btn-progress');
-            lucide.createIcons();
-            
-            if (isTemp && element.parentNode) {
-                element.parentNode.removeChild(element);
+            updateStatus('❌', 'Hitilafu!', 'Haiwezi kupakia website', 0);
+            showToast('❌ Haiwezi kupakia website', 'error');
+        };
+        
+        // Timeout fallback
+        setTimeout(() => {
+            if (isConverting) {
+                document.body.removeChild(container);
+                isConverting = false;
+                document.getElementById('convertBtn').disabled = false;
+                document.getElementById('convertBtn').innerHTML = '📄 Badilisha kuwa PDF';
+                document.getElementById('convertBtn').classList.remove('btn-progress');
+                updateStatus('⚠️', 'Muda umekwisha!', 'Jaribu njia ya Screenshot', 0);
+                showToast('⚠️ Muda umekwisha. Jaribu njia ya Screenshot.', 'warning');
             }
-            
-            updateStatus('✅', 'Imekamilika!', 'PDF imepakuliwa', 100);
-            showToast('✅ PDF imepakuliwa!', 'success');
-            
-            setTimeout(() => {
-                updateStatus('✅', 'Tayari kwa kazi', 'Ingiza URL kisha bonyeza "Chukua"', null);
-            }, 3000);
-            
-        }).catch(function(err) {
-            console.error('PDF Error:', err);
-            isConverting = false;
-            document.getElementById('convertBtn').disabled = false;
-            document.getElementById('convertBtn').innerHTML = '<i data-lucide="file-pdf" class="w-5 h-5"></i> Badilisha kuwa PDF';
-            document.getElementById('convertBtn').classList.remove('btn-progress');
-            lucide.createIcons();
-            
-            if (isTemp && element.parentNode) {
-                element.parentNode.removeChild(element);
-            }
-            
-            updateStatus('❌', 'Hitilafu!', err.message || 'Hitilafu wakati wa kuunda PDF', 0);
-            showToast('❌ Hitilafu kuunda PDF: ' + err.message, 'error');
-        });
+        }, 60000);
     }
 
     // ============================================================
-    // OPEN IN NEW TAB
+    // TAKE SCREENSHOT ONLY
     // ============================================================
-    function openInNewTab() {
+    function takeScreenshot() {
         const url = getValidUrl();
-        if (url) {
-            window.open(url, '_blank');
-        }
+        if (!url) return;
+        
+        // Switch to screenshot method
+        selectMethod('screenshot');
+        loadWebsite();
     }
 
     // ============================================================
-    // CLEAR ALL
+    // CLEAR
     // ============================================================
     function clearAll() {
         document.getElementById('urlInput').value = '';
-        document.getElementById('previewFrame').src = 'about:blank';
+        const container = document.getElementById('previewContainer');
+        container.innerHTML = '<iframe id="previewFrame" src="about:blank"></iframe>';
         document.getElementById('pageInfo').textContent = '';
-        document.getElementById('fileName').value = 'website-screenshot';
-        capturedHtml = '';
-        updateStatus('⏳', 'Tayari kwa kazi', 'Ingiza URL kisha bonyeza "Chukua"', null);
+        document.getElementById('fileName').value = 'website-page';
+        capturedImages = [];
+        currentUrl = '';
+        updateStatus('⏳', 'Tayari kwa kazi', 'Ingiza URL kisha bonyeza "Chukua"');
         showToast('🗑️ Imefutwa', 'info');
     }
 
@@ -542,30 +690,17 @@
     // KEYBOARD SHORTCUTS
     // ============================================================
     document.addEventListener('keydown', function(e) {
-        // Ctrl+Enter to load
-        if (e.ctrlKey && e.key === 'Enter') {
-            e.preventDefault();
-            loadWebsite();
-        }
-        // Ctrl+P to convert to PDF
-        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-            e.preventDefault();
-            convertToPDF();
-        }
-        // Ctrl+L to load
-        if (e.ctrlKey && e.key === 'l') {
-            e.preventDefault();
-            document.getElementById('urlInput').focus();
-        }
+        if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); loadWebsite(); }
+        if (e.ctrlKey && e.shiftKey && e.key === 'P') { e.preventDefault(); convertToPDF(); }
+        if (e.ctrlKey && e.key === 's') { e.preventDefault(); takeScreenshot(); }
     });
 
     // ============================================================
-    // INIT - Load default URL
+    // INIT
     // ============================================================
     document.addEventListener('DOMContentLoaded', function() {
-        // Load default website
         setTimeout(loadWebsite, 500);
-        showToast('🚀 Karibu! Ingiza URL ya website unayotaka kubadilisha kuwa PDF.', 'info');
+        showToast('🚀 Karibu! Njia ya Screenshot inafanya kazi kwa website zote.', 'info');
     });
 </script>
 
