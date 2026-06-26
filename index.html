@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. William - Document Converter</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- html2pdf for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- FileSaver for Word/HTML download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- Lucide icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <style>
+        body { font-family: 'DM Sans', sans-serif; background: #f0ebe3; }
+        .serif { font-family: 'Source Serif Pro', serif; }
+        .gradient-bar { background: linear-gradient(90deg, #1B5E20, #FFD600, #0D47A1); height: 6px; }
+        .page-preview { max-width: 1100px; margin: 0 auto; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.10); }
+        .section-num { display: inline-block; background: #1B5E20; color: #fff; width: 36px; height: 36px; line-height: 36px; text-align: center; border-radius: 50%; font-weight: 700; margin-right: 12px; font-size: 14px; }
+        .toc-item { border-bottom: 1px dashed #ccc; padding: 6px 0; }
+        .canva-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .canva-image { width: 100%; object-fit: cover; border-radius: 16px; }
+        
+        /* Print/PDF styles */
+        @media print {
+            body { background: #fff; padding: 0; margin: 0; }
+            .no-print { display: none !important; }
+            .page-preview { box-shadow: none; max-width: 100%; }
+            .canva-image { page-break-inside: avoid; }
+            section { page-break-inside: avoid; }
+            .gradient-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            header .absolute { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+        
+        .tab-btn { transition: all 0.3s; }
+        .tab-btn.active { background: #1B5E20; color: #fff; }
+        .tab-btn:hover:not(.active) { background: #e8f5e9; }
+        
+        .drop-zone {
+            border: 3px dashed #1B5E20;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            background: #fafffe;
+            cursor: pointer;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #e8f5e9;
+            border-color: #FFD600;
+        }
+        .drop-zone .icon { font-size: 48px; color: #1B5E20; }
+        
+        .preview-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fafafa;
+        }
+        .preview-container iframe {
+            width: 100%;
+            min-height: 500px;
+            border: none;
+        }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1B5E20;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-green-800 serif">📄 MzalendoKilimo - Document Converter</h1>
+                <p class="text-gray-600">Ingiza HTML, uzalishe PDF au Word na picha zote</p>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <button onclick="generatePDF()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 no-print">
+                    <i data-lucide="file-pdf" class="w-5 h-5"></i> Pakua PDF
+                </button>
+                <button onclick="generateWord()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 no-print">
+                    <i data-lucide="file-text" class="w-5 h-5"></i> Pakua Word
+                </button>
+                <button onclick="downloadHTML()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 no-print">
+                    <i data-lucide="code" class="w-5 h-5"></i> Pakua HTML
+                </button>
+            </div>
+        </div>
+
+        <!-- Input Section -->
+        <div class="grid md:grid-cols-2 gap-6 no-print">
+            <!-- Paste HTML -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-lg font-bold text-green-800 mb-3">📝 Ingiza HTML Yako</h2>
+                <textarea id="htmlInput" rows="12" class="w-full border rounded-lg p-3 font-mono text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Bandika HTML yako hapa..."></textarea>
+                <div class="mt-3 flex gap-3 flex-wrap">
+                    <button onclick="loadSample()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">🚀 Load Sample Document</button>
+                    <button onclick="previewHTML()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">👁️ Preview</button>
+                    <button onclick="clearInput()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm">🗑️ Clear</button>
+                </div>
+            </div>
+
+            <!-- OR Upload File -->
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-lg font-bold text-green-800 mb-3">📂 Pakia Faili ya HTML</h2>
+                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div class="icon">📄</div>
+                    <p class="text-lg font-semibold text-gray-700">Bonyeza au Buruta Faili hapa</p>
+                    <p class="text-sm text-gray-500">.html, .htm</p>
+                    <input type="file" id="fileInput" accept=".html,.htm" class="hidden" onchange="handleFileUpload(event)">
+                </div>
+                <div id="uploadStatus" class="mt-3 text-sm text-gray-600"></div>
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="loader"></div>
+
+        <!-- Preview Section -->
+        <div class="mt-6 no-print">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-bold text-green-800">👁️ Preview ya Dokumenti</h2>
+                <span class="text-sm text-gray-500" id="pageCount"></span>
+            </div>
+            <div class="preview-container" id="previewContainer">
+                <div id="previewContent" class="p-4 text-gray-500 text-center">
+                    <p class="text-2xl">📄</p>
+                    <p>Bandika HTML au pakia faili kuona preview</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Output (hidden, for PDF/Word generation) -->
+        <div id="documentOutput" style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // ============================================================
+    // SAMPLE HTML - MzalendoKilimo Full Document
+    // ============================================================
+    function getSampleHTML() {
+        return `<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MzalendoKilimo - Pendekezo Kamili</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"><\/script>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700;900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'DM Sans', sans-serif; background: #f0ebe3; }
+        .serif { font-family: 'Source Serif Pro', serif; }
+        .gradient-bar { background: linear-gradient(90deg, #1B5E20, #FFD600, #0D47A1); height: 6px; }
+        .page { max-width: 900px; margin: 0 auto; background: #fff; box-shadow: 0 4px 40px rgba(0,0,0,0.10); }
+        .section-num { display: inline-block; background: #1B5E20; color: #fff; width: 36px; height: 36px; line-height: 36px; text-align: center; border-radius: 50%; font-weight: 700; margin-right: 12px; font-size: 14px; }
+        .toc-item { border-bottom: 1px dashed #ccc; padding: 6px 0; }
+        .canva-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .canva-image { width: 100%; object-fit: cover; border-radius: 16px; }
+        @media print { body { background: #fff; } .page { box-shadow: none; } }
+    <\/style>
+<\/head>
+<body>
+<div class="page">
+    <!-- Cover -->
+    <div class="gradient-bar"></div>
+    <header class="relative overflow-hidden">
+        <img class="canva-image w-full h-[480px] object-cover" loading="lazy" src="https://images.pexels.com/photos/13042951/pexels-photo-13042951.jpeg?auto=compress&cs=tinysrgb&w=1920" alt="African farmer with corn">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent flex flex-col justify-end p-10">
+            <p class="inline-block px-3 py-1 rounded text-xs font-bold mb-4 w-fit" style="background: #1B5E20; color: #FFD600; font-size: 16px;">🌾 MZALENDO KILIMO</p>
+            <h1 class="serif text-4xl md:text-5xl font-black leading-tight mb-3" style="color: #fff; font-size: 32px;">Mfumo wa Kidijitali Unaounganisha Wakulima, M-Pesa, na Akili Mnemba (AI) Kuongeza Mapato ya Kodi kutoka Sekta ya Kilimo Tanzania</h1>
+            <p class="text-lg md:text-xl opacity-90 mb-4" style="color: #FFD600; font-weight: 700; font-size: 16px;">Pendekezo Kamili la Kiufundi — Agri-Fintech Innovation 2026</p>
+            <p class="text-base opacity-90" style="color: #fff; font-weight: 600; font-size: 16px;">BARAKA RICHARD NONYA — Mwanzilishi na Mbunifu Mkuu wa Wazo</p>
+            <p class="text-sm mt-1 opacity-80" style="color: #fff; font-size: 16px;">Simu: 0762286282 | Barua Pepe: barakanonyal@gmail.com</p>
+            <p class="text-xs mt-3 opacity-60" style="color: #fff; font-size: 16px;">Toleo 1.0 • Juni 2026 • Dar es Salaam, Tanzania</p>
+        </div>
+    </header>
+    
+    <!-- About -->
+    <section class="p-8 md:p-12">
+        <h2 class="serif font-bold text-2xl mb-4 border-l-4 border-green-700 pl-4" style="color: #1B5E20; font-size: 24px;">Kuhusu Andiko Hili</h2>
+        <p class="leading-relaxed text-sm" style="color: #333; font-size: 16px;">Andiko hili limeandaliwa kama pendekezo kamili la dhana (full concept proposal) likiwa na muundo wa kiufundi, michoro ya mfumo (architecture diagrams), mfano wa udhibiti (control room mockup), ramani ya utekelezaji, makadirio ya gharama, na uchambuzi wa changamoto. Takwimu zote za fedha na idadi zilizotajwa humu ni makadirio ya kimkakati kwa madhumuni ya kuonyesha uwezekano wa wazo, na yanahitaji uthibitisho zaidi wa kitakwimu kutoka TRA, BoT, NBS na Wizara ya Kilimo kabla ya utekelezaji rasmi.</p>
+    </section>
+    <div class="gradient-bar"></div>
+    
+    <!-- TOC -->
+    <section class="p-8 md:p-12">
+        <h2 class="serif font-bold text-2xl mb-6 text-center" style="color: #1B5E20; font-size: 24px;">YALIYOMO</h2>
+        <p class="text-sm leading-loose whitespace-pre-line" style="color: #333; font-size: 16px;">1.0 Muhtasari Mkuu (Executive Summary)
+2.0 Tatizo na Fursa (Problem Statement & Opportunity)
+3.0 Suluhisho Linalopendekezwa (The MzalendoKilimo Solution)
+4.0 Muundo wa Kiufundi wa Mfumo (System Architecture)
+5.0 Mtiririko wa Mtumiaji (End-to-End User Journey)
+6.0 Nafasi ya Akili Mnemba - AI Engine (Mizani ya Akili)
+7.0 TRA Control Room - Usimamizi na Ufuatiliaji
+8.0 Mfano wa Biashara na Uendelevu (Business & Sustainability Model)
+9.0 Mpango wa Utekelezaji (Implementation Roadmap)
+10.0 Gharama za Mradi (Cost & Budget Estimate)
+11.0 Athari Zinazotarajiwa (Expected Impact & KPIs)
+12.0 Changamoto na Mikakati ya Kuzitatua (Risks & Mitigation)
+13.0 Usalama wa Taarifa na Faragha (Data Security & Privacy)
+14.0 Sera, Sheria na Uoanifu (Legal & Regulatory Alignment)
+15.0 Timu na Wasifu wa Mwanzilishi (Team & Founder Profile)
+16.0 Hitimisho (Conclusion & Call to Action)</p>
+    </section>
+    <div class="gradient-bar"></div>
+    
+    <!-- Stats Cards -->
+    <section class="p-8 md:p-12">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="rounded-xl p-5 text-center" style="background: #E8F5E9;">
+                <p class="serif text-2xl font-black" style="color: #1B5E20; font-size: 16px;">Milioni 5+</p>
+                <p class="text-xs mt-1" style="color: #555; font-size: 16px;">Wakulima Wanaoweza Kufikiwa</p>
+            </div>
+            <div class="rounded-xl p-5 text-center" style="background: #FFF8E1;">
+                <p class="serif text-2xl font-black" style="color: #E65100; font-size: 16px;">Dakika 5</p>
+                <p class="text-xs mt-1" style="color: #555; font-size: 16px;">Muda wa Usajili Kamili</p>
+            </div>
+            <div class="rounded-xl p-5 text-center" style="background: #E3F2FD;">
+                <p class="serif text-2xl font-black" style="color: #0D47A1; font-size: 16px;">4 Tabaka</p>
+                <p class="text-xs mt-1" style="color: #555; font-size: 16px;">Muundo wa Mfumo wa Kiufundi</p>
+            </div>
+            <div class="rounded-xl p-5 text-center" style="background: #FCE4EC;">
+                <p class="serif text-2xl font-black" style="color: #C62828; font-size: 16px;">Awamu 4</p>
+                <p class="text-xs mt-1" style="color: #555; font-size: 16px;">Mpango wa Utekelezaji</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Nguzo Kuu -->
+    <section class="p-8 md:p-12">
+        <h3 class="serif font-bold text-xl mb-6 text-center" style="color: #1B5E20; font-size: 19px;">Nguzo Kuu Tatu za Wazo</h3>
+        <div class="grid md:grid-cols-3 gap-5">
+            <div class="rounded-xl p-5 border-t-4 border-green-600" style="background: #E8F5E9;">
+                <h4 class="font-bold mb-2" style="color: #1B5E20; font-size: 16px;">1. Usajili na Malipo kupitia M-Pesa</h4>
+                <p class="text-sm" style="color: #333; font-size: 16px;">Mkulima anajisajili na kulipa kodi yake moja kwa moja kupitia namba yake ya M-Pesa, ikiunganishwa papo hapo na TIN yake kwenye mfumo wa TRA.</p>
+            </div>
+            <div class="rounded-xl p-5 border-t-4 border-yellow-500" style="background: #FFF8E1;">
+                <h4 class="font-bold mb-2" style="color: #E65100; font-size: 16px;">2. Risiti za Kielektroniki kwa USSD/App</h4>
+                <p class="text-sm" style="color: #333; font-size: 16px;">Kila muamala wa mauzo ya mazao unazalisha risiti ya kielektroniki kiotomatiki, ikitumwa SMS au WhatsApp, sambamba na matakwa ya EFD/VFD.</p>
+            </div>
+            <div class="rounded-xl p-5 border-t-4 border-blue-600" style="background: #E3F2FD;">
+                <h4 class="font-bold mb-2" style="color: #0D47A1; font-size: 16px;">3. Akili Mnemba kama Mhasibu wa Kilimo</h4>
+                <p class="text-sm" style="color: #333; font-size: 16px;">AI inachambua mauzo ya kila msimu, gharama za pembejeo, na kumweleza mkulima faida yake kwa lugha rahisi ya Kiswahili.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Farmer Image -->
+    <section class="p-8 md:p-12">
+        <img class="canva-image w-full h-72 object-cover rounded-2xl shadow-xl" loading="lazy" src="https://images.pexels.com/photos/20371811/pexels-photo-20371811.jpeg?auto=compress&cs=tinysrgb&w=1280" alt="Farmer smiling">
+    </section>
+    <div class="gradient-bar"></div>
+    
+    <!-- More sections... -->
+    <section class="p-8 md:p-12">
+        <h2 class="serif font-bold text-2xl mb-4 border-l-4 border-red-600 pl-4" style="color: #C62828; font-size: 24px;">2.0 Tatizo na Fursa</h2>
+        <p class="leading-relaxed" style="color: #333; font-size: 16px;">Sekta ya kilimo ya Tanzania ina mchango mkubwa katika uchumi - lakini wakulima wengi hawajawahi kulipa kodi ya mapato wala kujisajili TRA. Hii sio kwa nia mbaya, bali kwa sababu kadhaa za kimuundo ambazo zinahitaji suluhisho la kimfumo badala ya adhabu.</p>
+    </section>
+    
+    <!-- Technology Image -->
+    <section class="p-8 md:p-12">
+        <img class="canva-image w-full h-64 object-cover rounded-2xl shadow-xl" loading="lazy" src="https://images.pexels.com/photos/12969403/pexels-photo-12969403.jpeg?auto=compress&cs=tinysrgb&w=1280" alt="Laptop dashboard">
+    </section>
+    
+    <!-- CTA -->
+    <section class="p-8 md:p-12 text-center" style="background: #1B5E20;">
+        <h2 class="serif font-bold text-2xl mb-4" style="color: #FFD600; font-size: 24px;">Wito wa Hatua</h2>
+        <p class="leading-relaxed mb-4" style="color: #fff; font-size: 16px;">Hatua inayofuata: Kuwasilisha andiko hili kwa TRA, Wizara ya Kilimo, na wadau wakuu kama pendekezo la awali, kufuatiwa na vikao vya kiufundi, kabla ya kuanza Awamu ya 1.</p>
+        <p class="italic text-lg" style="color: #FFD600; font-weight: 600; font-size: 16px;">"Mkulima si maskini. Mkulima ni hazina. Hazina hii inahitaji kuonekana."</p>
+    </section>
+    
+    <!-- Footer -->
+    <div class="gradient-bar"></div>
+    <footer class="p-8 text-center" style="background: #1B5E20;">
+        <p class="font-bold text-lg mb-1" style="color: #FFD600; font-size: 16px;">🌾 MZALENDO KILIMO</p>
+        <p class="text-sm mb-1" style="color: #C8E6C9; font-size: 16px;">Andiko limeandaliwa na BARAKA RICHARD NONYA</p>
+        <p class="text-sm" style="color: #C8E6C9; font-size: 16px;">Simu: 0762286282 | barakanonyal@gmail.com | Dar es Salaam, Tanzania</p>
+        <p class="italic text-sm mt-3" style="color: #A5D6A7; font-size: 16px;">Kodi Rahisi, Kilimo Imara, Taifa Imara</p>
+        <p class="text-xs mt-3 opacity-60" style="color: #A5D6A7; font-size: 16px;">© 2026 — Toleo 1.0 — Pendekezo Kamili la MzalendoKilimo</p>
+    </footer>
+</div>
+<\/body>
+<\/html>`;
+    }
+
+    // ============================================================
+    // FUNCTIONS
+    // ============================================================
+    function loadSample() {
+        document.getElementById('htmlInput').value = getSampleHTML();
+        previewHTML();
+        showToast('✅ Sample document loaded successfully!', 'success');
+    }
+
+    function clearInput() {
+        document.getElementById('htmlInput').value = '';
+        document.getElementById('previewContent').innerHTML = `
+            <p class="text-2xl">📄</p>
+            <p>Bandika HTML au pakia faili kuona preview</p>
+        `;
+        document.getElementById('uploadStatus').textContent = '';
+        showToast('🗑️ Cleared', 'info');
+    }
+
+    function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('htmlInput').value = e.target.result;
+            document.getElementById('uploadStatus').innerHTML = `<span class="text-green-600">✅ Imepakiwa: ${file.name}</span>`;
+            previewHTML();
+            showToast('✅ Faili imepakiwa!', 'success');
+        };
+        reader.readAsText(file);
+    }
+
+    function previewHTML() {
+        const html = document.getElementById('htmlInput').value;
+        if (!html.trim()) {
+            showToast('⚠️ Tafadhali ingiza HTML kwanza', 'warning');
+            return;
+        }
+        
+        const container = document.getElementById('previewContent');
+        container.innerHTML = html;
+        
+        // Count pages
+        const pages = container.querySelectorAll('section, header, footer, .page > div');
+        document.getElementById('pageCount').textContent = `📄 Sehemu: ${pages.length}`;
+        
+        showToast('✅ Preview imeboreshwa!', 'success');
+    }
+
+    // ============================================================
+    // GENERATE PDF
+    // ============================================================
+    function generatePDF() {
+        const html = document.getElementById('htmlInput').value;
+        if (!html.trim()) {
+            showToast('⚠️ Tafadhali ingiza HTML kwanza', 'warning');
+            return;
+        }
+        
+        showLoader(true);
+        
+        // Create a temporary container for PDF generation
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        tempDiv.style.padding = '20px';
+        tempDiv.style.maxWidth = '900px';
+        tempDiv.style.margin = '0 auto';
+        tempDiv.style.background = '#fff';
+        tempDiv.style.fontSize = '14px';
+        
+        // Ensure images load
+        const images = tempDiv.querySelectorAll('img');
+        images.forEach(img => {
+            if (img.src && !img.src.startsWith('data:') && !img.src.startsWith('blob:')) {
+                img.setAttribute('crossorigin', 'anonymous');
+            }
+        });
+        
+        document.body.appendChild(tempDiv);
+        
+        const opt = {
+            margin: [10, 10, 10, 10],
+            filename: 'MzalendoKilimo-Pendekezo-Kamili.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true,
+                logging: false,
+                letterRendering: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: 'a4', 
+                orientation: 'portrait' 
+            },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        
+        html2pdf().set(opt).from(tempDiv).save().then(function() {
+            document.body.removeChild(tempDiv);
+            showLoader(false);
+            showToast('✅ PDF imepakuliwa!', 'success');
+        }).catch(function(err) {
+            console.error(err);
+            document.body.removeChild(tempDiv);
+            showLoader(false);
+            showToast('❌ Hitilafu wakati wa kuunda PDF: ' + err.message, 'error');
+        });
+    }
+
+    // ============================================================
+    // GENERATE WORD (DOC)
+    // ============================================================
+    function generateWord() {
+        const html = document.getElementById('htmlInput').value;
+        if (!html.trim()) {
+            showToast('⚠️ Tafadhali ingiza HTML kwanza', 'warning');
+            return;
+        }
+        
+        showLoader(true);
+        
+        // Add Word-specific styles
+        const wordStyles = `
+            <style>
+                body { font-family: 'Calibri', 'Arial', sans-serif; max-width: 900px; margin: 0 auto; padding: 30px; background: #fff; }
+                .gradient-bar { background: linear-gradient(90deg, #1B5E20, #FFD600, #0D47A1); height: 6px; }
+                .canva-image { max-width: 100%; height: auto; border-radius: 8px; }
+                .serif { font-family: 'Times New Roman', serif; }
+                section { margin-bottom: 20px; }
+                .page { max-width: 900px; margin: 0 auto; }
+                .absolute { position: relative; }
+                .inset-0 { padding: 20px; background: rgba(0,0,0,0.7); color: #fff; }
+                .opacity-90 { opacity: 0.9; }
+                .opacity-80 { opacity: 0.8; }
+                .opacity-60 { opacity: 0.6; }
+                .rounded-2xl { border-radius: 16px; }
+                .shadow-xl { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                .border-l-4 { border-left-width: 4px; }
+                .border-green-700 { border-color: #1B5E20; }
+                .border-red-600 { border-color: #C62828; }
+                .border-blue-700 { border-color: #0D47A1; }
+                .border-yellow-500 { border-color: #FFC107; }
+                .bg-green-700 { background: #1B5E20; }
+                .text-white { color: #fff; }
+                .text-center { text-align: center; }
+                .text-2xl { font-size: 24px; }
+                .text-3xl { font-size: 28px; }
+                .text-4xl { font-size: 32px; }
+                .text-5xl { font-size: 36px; }
+                .font-bold { font-weight: 700; }
+                .font-black { font-weight: 900; }
+                .leading-tight { line-height: 1.2; }
+                .mb-4 { margin-bottom: 16px; }
+                .mb-6 { margin-bottom: 24px; }
+                .mt-3 { margin-top: 12px; }
+                .p-8 { padding: 32px; }
+                .p-10 { padding: 40px; }
+                .grid { display: grid; }
+                .grid-cols-2 { grid-template-columns: 1fr 1fr; }
+                .grid-cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+                .gap-4 { gap: 16px; }
+                .gap-5 { gap: 20px; }
+                @media print { body { background: #fff; } }
+            <\/style>
+        `;
+        
+        // Build full document for Word
+        const docHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+                <title>MzalendoKilimo - Pendekezo Kamili</title>
+                ${wordStyles}
+            <\/head>
+            <body>
+                ${html}
+            <\/body>
+            <\/html>
+        `;
+        
+        // Create a blob and download as .doc
+        const blob = new Blob([docHtml], { type: 'application/msword;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'MzalendoKilimo-Pendekezo-Kamili.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        
+        showLoader(false);
+        showToast('✅ Word document imepakuliwa!', 'success');
+    }
+
+    // ============================================================
+    // DOWNLOAD HTML
+    // ============================================================
+    function downloadHTML() {
+        const html = document.getElementById('htmlInput').value;
+        if (!html.trim()) {
+            showToast('⚠️ Tafadhali ingiza HTML kwanza', 'warning');
+            return;
+        }
+        
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'MzalendoKilimo-Document.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        
+        showToast('✅ HTML imepakuliwa!', 'success');
+    }
+
+    // ============================================================
+    // TOAST NOTIFICATIONS
+    // ============================================================
+    function showToast(message, type = 'info') {
+        const colors = {
+            success: 'bg-green-600',
+            warning: 'bg-yellow-600',
+            error: 'bg-red-600',
+            info: 'bg-blue-600'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 ${colors[type] || 'bg-blue-600'} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-500 max-w-md`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => toast.remove(), 500);
+        }, 4000);
+    }
+
+    // ============================================================
+    // LOADER
+    // ============================================================
+    function showLoader(show) {
+        const loader = document.getElementById('loader');
+        if (show) {
+            loader.style.display = 'block';
+        } else {
+            loader.style.display = 'none';
+        }
+    }
+
+    // ============================================================
+    // DRAG AND DROP
+    // ============================================================
+    const dropZone = document.getElementById('dropZone');
+    
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('htmlInput').value = ev.target.result;
+                    document.getElementById('uploadStatus').innerHTML = `<span class="text-green-600">✅ Imepakiwa: ${file.name}</span>`;
+                    previewHTML();
+                    showToast('✅ Faili imepakiwa!', 'success');
+                };
+                reader.readAsText(file);
+            } else {
+                showToast('⚠️ Tafadhali pakia faili ya HTML (.html, .htm)', 'warning');
+            }
+        }
+    });
+
+    // ============================================================
+    // KEYBOARD SHORTCUTS
+    // ============================================================
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+Enter to preview
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            previewHTML();
+        }
+        // Ctrl+P to download PDF
+        if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+            e.preventDefault();
+            generatePDF();
+        }
+    });
+
+    // ============================================================
+    // INIT - Load sample on first visit
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load sample by default
+        document.getElementById('htmlInput').value = getSampleHTML();
+        previewHTML();
+        showToast('🚀 Karibu! Sample document imepakiwa. Badilisha HTML kisha bonyeza Preview.', 'info');
+    });
+</script>
+
+</body>
+</html>
